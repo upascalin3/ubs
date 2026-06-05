@@ -1,5 +1,7 @@
 package com.utility.billing.config;
 
+import com.utility.billing.common.documentation.ExamFlowEndpointRegistry;
+import com.utility.billing.common.documentation.ExamFlowEndpoints;
 import com.utility.billing.common.documentation.HandlerMethodRoleRegistry;
 import com.utility.billing.common.documentation.RoleGroupedOpenApiSupport;
 import com.utility.billing.common.security.RoleName;
@@ -99,5 +101,51 @@ public class RoleOpenApiConfig {
 
 						Use a JWT from any role after login.
 						""");
+	}
+
+	@Bean
+	public GroupedOpenApi examPublicApis(ExamFlowEndpointRegistry examRegistry) {
+		return examFlowGroup(examRegistry, ExamFlowEndpoints.GROUP_PUBLIC,
+				"EXAM — 1. Authentication (PUBLIC)", ExamFlowEndpoints.PUBLIC);
+	}
+
+	@Bean
+	public GroupedOpenApi examAdminApis(ExamFlowEndpointRegistry examRegistry) {
+		return examFlowGroup(examRegistry, ExamFlowEndpoints.GROUP_ADMIN,
+				"EXAM — 2. Admin Portal", ExamFlowEndpoints.ADMIN);
+	}
+
+	@Bean
+	public GroupedOpenApi examOperatorApis(ExamFlowEndpointRegistry examRegistry) {
+		return examFlowGroup(examRegistry, ExamFlowEndpoints.GROUP_OPERATOR,
+				"EXAM — 3. Operator Portal", ExamFlowEndpoints.OPERATOR);
+	}
+
+	@Bean
+	public GroupedOpenApi examFinanceApis(ExamFlowEndpointRegistry examRegistry) {
+		return examFlowGroup(examRegistry, ExamFlowEndpoints.GROUP_FINANCE,
+				"EXAM — 4. Finance Portal", ExamFlowEndpoints.FINANCE);
+	}
+
+	@Bean
+	public GroupedOpenApi examCustomerApis(ExamFlowEndpointRegistry examRegistry) {
+		return examFlowGroup(examRegistry, ExamFlowEndpoints.GROUP_CUSTOMER,
+				"EXAM — 5. Customer Portal", ExamFlowEndpoints.CUSTOMER);
+	}
+
+	@Bean
+	public GroupedOpenApi examCompleteFlowApis(ExamFlowEndpointRegistry examRegistry) {
+		return examFlowGroup(examRegistry, ExamFlowEndpoints.GROUP_COMPLETE,
+				"EXAM — Complete Demo Flow (all steps)", ExamFlowEndpoints.COMPLETE);
+	}
+
+	private static GroupedOpenApi examFlowGroup(ExamFlowEndpointRegistry registry, String groupId,
+			String displayName, java.util.Set<String> endpoints) {
+		return RoleGroupedOpenApiSupport.forExamFlow(
+				registry,
+				groupId,
+				displayName,
+				ExamFlowEndpoints.groupDescriptions().get(groupId),
+				endpoints);
 	}
 }

@@ -51,6 +51,25 @@ public final class RoleGroupedOpenApiSupport {
 				.build();
 	}
 
+	public static GroupedOpenApi forExamFlow(ExamFlowEndpointRegistry examRegistry, String groupId,
+			String displayName, String description, java.util.Set<String> endpoints) {
+		return GroupedOpenApi.builder()
+				.group(groupId)
+				.displayName(displayName)
+				.pathsToMatch("/api/**")
+				.addOpenApiMethodFilter(method -> examRegistry.matches(method, endpoints))
+				.addOpenApiCustomizer(SrsOpenApiTags.orderCustomizer())
+				.addOpenApiCustomizer(openApi -> {
+					if (openApi.getInfo() != null) {
+						openApi.getInfo().setTitle("UBS — " + displayName);
+						openApi.getInfo().setDescription(description);
+					}
+					SrsOpenApiTags.orderCustomizer().customise(openApi);
+				})
+				.addOperationCustomizer(endpointSecurityCustomizer())
+				.build();
+	}
+
 	public static GroupedOpenApi allApis(HandlerMethodRoleRegistry registry) {
 		return GroupedOpenApi.builder()
 				.group("all")
@@ -67,19 +86,20 @@ public final class RoleGroupedOpenApiSupport {
 
 								Use the **group dropdown** (top right) to filter by role.
 
+								**Exam demo (few minutes):** pick **EXAM — Complete Demo Flow** or per-portal EXAM groups.
+
 								| Group | Login as |
 								|-------|----------|
-								| PUBLIC | — (signup first) |
-								| ROLE_ADMIN | admin@wasac.rw |
-								| ROLE_OPERATOR | operator@wasac.rw |
-								| ROLE_FINANCE | finance@wasac.rw |
-								| ROLE_CUSTOMER | self-register + OTP |
+								| EXAM — Complete Demo Flow | follow 20 steps in catalog |
+								| PUBLIC / EXAM — 1. Authentication | — (signup first) |
+								| ROLE_ADMIN / EXAM — 2. Admin | admin@wasac.rw |
+								| ROLE_OPERATOR / EXAM — 3. Operator | operator@wasac.rw |
+								| ROLE_FINANCE / EXAM — 4. Finance | finance@wasac.rw |
+								| ROLE_CUSTOMER / EXAM — 5. Customer | self-register + OTP |
 
 								Passwords: admin uses `Admin@123`; operator and finance use `Password@123`
 
-								Key paths: `/api/users`, `/api/meters/user/{userId}`, `/api/bills/user/{userId}`
-
-								Verify: `GET /api/docs/role-catalog`
+								Verify: `GET /api/docs/exam-flow-catalog` · `GET /api/docs/role-catalog`
 								""");
 					}
 				})
