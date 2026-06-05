@@ -1,0 +1,90 @@
+server:
+  port: 8080
+
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  application:
+    name: ubs-monolith
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:wasac_ms}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+jwt:
+  secret: ${JWT_SECRET:wasac-ubs-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  access-token-expiration-ms: 900000
+  refresh-token-expiration-ms: 604800000
+
+app:
+  file:
+    upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  billing:
+    scheduler:
+      enabled: true
+      cron: "0 0 1 1 * *"
+
+springdoc:
+  default-flat-param-object: true
+  api-docs:
+    path: /api-docs
+    groups:
+      enabled: true
+  show-actuator: false
+  swagger-ui:
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    display-request-duration: true
+    persist-authorization: true
+    filter: true
+    tags-sorter: ""
+    operations-sorter: method
+    doc-expansion: list
+    default-models-expand-depth: 1
+    config-url: /api-docs/swagger-config
+    urls-primary-name: all
+    urls:
+      - name: "ALL - Complete catalog"
+        url: /api-docs/all
+      - name: "PUBLIC - No JWT"
+        url: /api-docs/public
+      - name: "ROLE_ADMIN"
+        url: /api-docs/admin
+      - name: "ROLE_OPERATOR"
+        url: /api-docs/operator
+      - name: "ROLE_FINANCE"
+        url: /api-docs/finance
+      - name: "ROLE_CUSTOMER"
+        url: /api-docs/customer
+      - name: "Authenticated - Any logged-in user"
+        url: /api-docs/authenticated
+
+logging:
+  level:
+    com.utility.billing: INFO

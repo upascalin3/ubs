@@ -1,0 +1,153 @@
+%% Utility Billing System - Spring Boot Flow Diagram
+flowchart TD
+    Client["API Client / Swagger / Postman"]
+
+    subgraph SpringBoot["Spring Boot Monolith : ubs-monolith on port 8080"]
+        SecurityFilter["JwtAuthenticationFilter"]
+        MethodSecurity["@PreAuthorize role checks"]
+        ExceptionHandler["GlobalExceptionHandler"]
+        ApiResponse["ApiResponse DTOs"]
+
+        subgraph Controllers["REST Controllers"]
+            AuthController["AuthController\n/api/auth"]
+            UserController["UserController\n/api/users"]
+            ProfileController["ProfileController\n/api/profile"]
+            MeterController["MeterController\n/api/meters"]
+            ReadingController["MeterReadingController\n/api/readings"]
+            TariffController["TariffController\n/api/tariffs"]
+            BillController["BillController\n/api/bills"]
+            PaymentController["PaymentController\n/api/payments"]
+            NotificationController["NotificationController\n/api/notifications"]
+            AuditController["AuditLogController\n/api/audit"]
+            ReportController["ReportController\n/api/reports"]
+            FileController["FileController\n/api/files"]
+        end
+
+        subgraph Services["Business Services"]
+            AuthService["AuthService\nregister, login, refresh, logout"]
+            OtpService["OtpService\nOTP generation and verification"]
+            EmailService["EmailService\nSMTP delivery"]
+            UserService["UserService\nadmin user management"]
+            MeterService["MeterService\nmeter assignment"]
+            ReadingService["MeterReadingService\nvalidate and capture readings"]
+            TariffService["TariffService\nrate/version management"]
+            BillService["BillService\ngenerate, approve, reject, list"]
+            BillPdfService["BillPdfService\ngenerate bill PDF"]
+            PaymentService["PaymentService\nrecord payments"]
+            NotificationService["NotificationService\nlist and mark read"]
+            AuditService["AuditLogService\npersist business audit"]
+            ReportService["ReportService\nsummary queries"]
+            FileService["FileStorageService\nupload and metadata"]
+        end
+
+        AuditAspect["AuditAspect\nlogs register, login, user create, bill generate, payment record"]
+        Scheduler["MonthlyBillingScheduler\ncron: 01:00 on day 1"]
+        JwtProvider["JwtTokenProvider\naccess tokens"]
+        PasswordEncoder["BCryptPasswordEncoder"]
+    end
+
+    subgraph Database["PostgreSQL via Spring Data JPA, JdbcTemplate, Flyway"]
+        AuthSchema["auth schema\nusers, roles, otps, refresh_tokens, token_blacklist"]
+        CustomerSchema["customer schema\nmeters, files"]
+        MeterSchema["meter schema\nmeter_readings"]
+        BillingSchema["billing schema\ntariffs, pending_bill_generation, bills"]
+        PaymentSchema["payment schema\npayments, bill_balances"]
+        NotificationSchema["notification schema\nnotifications"]
+        AuditSchema["audit schema\naudit_logs"]
+        StoredProcedure["billing.generate_monthly_bills()"]
+        BillTrigger["trg_bill_notification"]
+        PaymentTrigger["trg_payment_completed"]
+    end
+
+    MailServer["SMTP Server\nGmail"]
+    Uploads["Local upload directory\n./uploads"]
+
+    Client --> SecurityFilter
+    SecurityFilter --> MethodSecurity
+    MethodSecurity --> AuthController
+    MethodSecurity --> UserController
+    MethodSecurity --> MeterController
+    MethodSecurity --> ReadingController
+    MethodSecurity --> BillController
+    MethodSecurity --> PaymentController
+    MethodSecurity --> NotificationController
+    MethodSecurity --> ReportController
+    MethodSecurity --> FileController
+    ApiResponse --> Client
+    ExceptionHandler --> Client
+
+    AuthController --> AuthService
+    UserController --> UserService
+    ProfileController --> AuthService
+    AuthService --> PasswordEncoder
+    AuthService --> JwtProvider
+    AuthService --> OtpService
+    OtpService --> EmailService
+    EmailService --> MailServer
+    AuthService --> AuthSchema
+    UserService --> AuthSchema
+
+    MeterController --> MeterService
+    MeterService --> CustomerSchema
+    MeterService --> AuthSchema
+
+    ReadingController --> ReadingService
+    ReadingService --> MeterSchema
+    ReadingService --> CustomerSchema
+    ReadingService --> AuthSchema
+    ReadingService --> BillingSchema
+
+    TariffController --> TariffService
+    TariffService --> BillingSchema
+
+    BillController --> BillService
+    BillService --> AuthSchema
+    BillService --> BillingSchema
+    BillService --> BillPdfService
+    BillPdfService --> NotificationService
+    BillService --> StoredProcedure
+    Scheduler --> BillService
+    StoredProcedure --> BillingSchema
+    BillingSchema --> BillTrigger
+    BillTrigger --> NotificationSchema
+
+    PaymentController --> PaymentService
+    PaymentService --> BillingSchema
+    PaymentService --> PaymentSchema
+    PaymentService --> BillPdfService
+    PaymentService --> NotificationService
+    PaymentSchema --> PaymentTrigger
+    PaymentTrigger --> BillingSchema
+    PaymentTrigger --> NotificationSchema
+
+    NotificationController --> NotificationService
+    NotificationService --> NotificationSchema
+    NotificationService --> AuthSchema
+    NotificationService --> MailServer
+
+    AuditAspect --> AuditService
+    AuditService --> AuditSchema
+    AuditController --> AuditService
+
+    ReportController --> ReportService
+    ReportService --> AuthSchema
+    ReportService --> BillingSchema
+    ReportService --> PaymentSchema
+
+    FileController --> FileService
+    FileService --> Uploads
+    FileService --> CustomerSchema
+
+    AuthService --> ApiResponse
+    UserService --> ApiResponse
+    MeterService --> ApiResponse
+    ReadingService --> ApiResponse
+    BillService --> ApiResponse
+    PaymentService --> ApiResponse
+    NotificationService --> ApiResponse
+    ReportService --> ApiResponse
+    FileService --> ApiResponse
+
+    AuthService -. errors .-> ExceptionHandler
+    BillService -. errors .-> ExceptionHandler
+    PaymentService -. errors .-> ExceptionHandler

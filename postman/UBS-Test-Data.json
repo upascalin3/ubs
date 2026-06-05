@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "collection": "UBS-Full-Test-Collection.postman_collection.json",
+    "environment": "UBS-Local.postman_environment.json",
+    "baseUrl": "http://localhost:8080",
+    "defaultPassword": "Password@123",
+    "adminPassword": "Admin@123",
+    "runOrder": [
+      "00 Setup",
+      "01 E2E",
+      "02-06 role folders",
+      "99 Validation",
+      "98 Security"
+    ],
+    "otpNote": "After signup/forgot-password, copy OTP from app console into collection variable otpCode"
+  },
+  "seedUsers": {
+    "admin": {
+      "email": "admin@wasac.rw",
+      "password": "Admin@123",
+      "role": "ROLE_ADMIN"
+    },
+    "operator": {
+      "email": "operator@wasac.rw",
+      "password": "Password@123",
+      "role": "ROLE_OPERATOR"
+    },
+    "finance": {
+      "email": "finance@wasac.rw",
+      "password": "Password@123",
+      "role": "ROLE_FINANCE"
+    }
+  },
+  "validPayloads": {
+    "signup": {
+      "fullName": "Jean Pascal",
+      "email": "{{uniqueEmail}}",
+      "password": "Password@123",
+      "phoneNumber": "{{uniquePhone}}",
+      "nationalId": "{{uniqueNationalId}}",
+      "address": "Kigali, Gasabo"
+    },
+    "verifyOtp": {
+      "email": "{{uniqueEmail}}",
+      "otpCode": "{{otpCode}}"
+    },
+    "login": {
+      "email": "admin@wasac.rw",
+      "password": "Admin@123"
+    },
+    "staffUser": {
+      "fullName": "New Operator",
+      "email": "{{uniqueStaffEmail}}",
+      "password": "Password@123",
+      "phoneNumber": "{{uniqueStaffPhone}}",
+      "roles": [
+        "ROLE_OPERATOR"
+      ]
+    },
+    "meter": {
+      "userId": "{{customerUserId}}",
+      "meterNumber": "{{uniqueMeterNumber}}",
+      "meterType": "WATER",
+      "installationDate": "2025-06-01",
+      "status": "ACTIVE"
+    },
+    "tariff": {
+      "meterType": "WATER",
+      "tariffName": "Residential Water",
+      "rate": 450,
+      "fixedCharge": 1500,
+      "vat": 18,
+      "penaltyRate": 5,
+      "version": "{{uniqueTariffVersion}}",
+      "effectiveDate": "{{todayDate}}",
+      "active": true
+    },
+    "reading": {
+      "meterId": "{{meterId}}",
+      "previousReading": 100,
+      "currentReading": 145,
+      "readingDate": "{{todayDate}}",
+      "month": "{{billingMonth}}",
+      "year": "{{billingYear}}"
+    },
+    "bill": {
+      "userId": "{{customerUserId}}",
+      "meterId": "{{meterId}}",
+      "meterType": "WATER",
+      "consumption": 45,
+      "billingMonth": "{{billingMonth}}",
+      "billingYear": "{{billingYear}}"
+    },
+    "payment": {
+      "billId": "{{billId}}",
+      "amountPaid": 5000,
+      "paymentMethod": "BANK_TRANSFER",
+      "paymentDate": "{{todayDate}}",
+      "referenceNumber": "{{uniquePaymentRef}}"
+    },
+    "profileUpdate": {
+      "fullName": "Jean Updated",
+      "phoneNumber": "0781234567",
+      "address": "Kigali"
+    }
+  },
+  "invalidPayloads": {
+    "signup": {
+      "name_numbers": {
+        "fullName": "Jean123",
+        "email": "{{uniqueEmail}}",
+        "password": "Password@123",
+        "phoneNumber": "{{uniquePhone}}",
+        "nationalId": "{{uniqueNationalId}}",
+        "address": "Kigali, Gasabo"
+      },
+      "weak_password": {
+        "fullName": "Jean Pascal",
+        "email": "{{uniqueEmail}}",
+        "password": "password",
+        "phoneNumber": "{{uniquePhone}}",
+        "nationalId": "{{uniqueNationalId}}",
+        "address": "Kigali, Gasabo"
+      },
+      "bad_phone": {
+        "fullName": "Jean Pascal",
+        "email": "{{uniqueEmail}}",
+        "password": "Password@123",
+        "phoneNumber": "12345",
+        "nationalId": "{{uniqueNationalId}}",
+        "address": "Kigali, Gasabo"
+      },
+      "missing_national_id": {
+        "fullName": "Jean Pascal",
+        "email": "{{uniqueEmail}}",
+        "password": "Password@123",
+        "phoneNumber": "{{uniquePhone}}",
+        "address": "Kigali, Gasabo"
+      },
+      "empty_body": {}
+    },
+    "staffUser": {
+      "two_roles": {
+        "fullName": "New Operator",
+        "email": "{{uniqueStaffEmail}}",
+        "password": "Password@123",
+        "phoneNumber": "{{uniqueStaffPhone}}",
+        "roles": [
+          "ROLE_OPERATOR",
+          "ROLE_FINANCE"
+        ]
+      },
+      "no_roles": {
+        "fullName": "New Operator",
+        "email": "{{uniqueStaffEmail}}",
+        "password": "Password@123",
+        "phoneNumber": "{{uniqueStaffPhone}}"
+      }
+    },
+    "meter": {
+      "missing_user": {
+        "meterNumber": "MTR-BAD",
+        "meterType": "WATER",
+        "installationDate": "2025-01-01",
+        "status": "ACTIVE"
+      },
+      "future_date": {
+        "userId": "{{customerUserId}}",
+        "meterNumber": "{{uniqueMeterNumber}}",
+        "meterType": "WATER",
+        "installationDate": "2099-12-31",
+        "status": "ACTIVE"
+      },
+      "bad_type": {
+        "userId": "{{customerUserId}}",
+        "meterNumber": "{{uniqueMeterNumber}}",
+        "meterType": "GAS",
+        "installationDate": "2025-06-01",
+        "status": "ACTIVE"
+      }
+    },
+    "tariff": {
+      "negative_rate": {
+        "meterType": "WATER",
+        "tariffName": "Residential Water",
+        "rate": -10,
+        "fixedCharge": 1500,
+        "vat": 18,
+        "penaltyRate": 5,
+        "version": "{{uniqueTariffVersion}}",
+        "effectiveDate": "{{todayDate}}",
+        "active": true
+      },
+      "past_effective_date": {
+        "meterType": "WATER",
+        "tariffName": "Residential Water",
+        "rate": 450,
+        "fixedCharge": 1500,
+        "vat": 18,
+        "penaltyRate": 5,
+        "version": "{{uniqueTariffVersion}}",
+        "effectiveDate": "2000-01-01",
+        "active": true
+      },
+      "missing_name": {
+        "meterType": "WATER",
+        "rate": 100,
+        "fixedCharge": 0,
+        "vat": 18,
+        "penaltyRate": 5,
+        "version": 1,
+        "effectiveDate": "{{todayDate}}"
+      }
+    },
+    "reading": {
+      "less_than_previous": {
+        "meterId": "{{meterId}}",
+        "previousReading": 200,
+        "currentReading": 150,
+        "readingDate": "{{todayDate}}",
+        "month": "{{billingMonth}}",
+        "year": "{{billingYear}}"
+      },
+      "equal": {
+        "meterId": "{{meterId}}",
+        "previousReading": 145,
+        "currentReading": 145,
+        "readingDate": "{{todayDate}}",
+        "month": "{{billingMonth}}",
+        "year": "{{billingYear}}"
+      },
+      "future_date": {
+        "meterId": "{{meterId}}",
+        "previousReading": 100,
+        "currentReading": 145,
+        "readingDate": "2099-01-01",
+        "month": "{{billingMonth}}",
+        "year": "{{billingYear}}"
+      },
+      "bad_month": {
+        "meterId": "{{meterId}}",
+        "previousReading": 100,
+        "currentReading": 145,
+        "readingDate": "{{todayDate}}",
+        "month": 13,
+        "year": "{{billingYear}}"
+      }
+    },
+    "payment": {
+      "zero_amount": {
+        "billId": "{{billId}}",
+        "amountPaid": 0,
+        "paymentMethod": "BANK_TRANSFER",
+        "paymentDate": "{{todayDate}}",
+        "referenceNumber": "{{uniquePaymentRef}}"
+      },
+      "overpay": {
+        "billId": "{{billId}}",
+        "amountPaid": 999999999,
+        "paymentMethod": "BANK_TRANSFER",
+        "paymentDate": "{{todayDate}}",
+        "referenceNumber": "{{uniquePaymentRef}}"
+      },
+      "future_date": {
+        "billId": "{{billId}}",
+        "amountPaid": 5000,
+        "paymentMethod": "BANK_TRANSFER",
+        "paymentDate": "2099-01-01",
+        "referenceNumber": "{{uniquePaymentRef}}"
+      },
+      "missing_bill": {
+        "amountPaid": 100,
+        "paymentMethod": "CASH",
+        "paymentDate": "{{todayDate}}",
+        "referenceNumber": "PAY-NOBILL"
+      }
+    }
+  },
+  "expectedStatus": {
+    "valid": [
+      200,
+      201
+    ],
+    "validationError": [
+      400,
+      422
+    ],
+    "forbidden": [
+      403
+    ],
+    "unauthorized": [
+      401,
+      403
+    ]
+  },
+  "coverage": {
+    "modules": [
+      "auth",
+      "users",
+      "accountHolders",
+      "meters",
+      "readings",
+      "tariffs",
+      "bills",
+      "payments",
+      "notifications",
+      "reports",
+      "audit",
+      "files",
+      "profile"
+    ],
+    "securityTests": [
+      "no JWT",
+      "bad JWT",
+      "cross-role 403"
+    ],
+    "businessRules": [
+      "duplicate nationalId",
+      "reading < previous",
+      "overpayment",
+      "single role per staff",
+      "FINANCE-only payments",
+      "CUSTOMER-only profile update"
+    ]
+  }
+}
