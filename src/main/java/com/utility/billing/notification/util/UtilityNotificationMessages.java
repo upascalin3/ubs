@@ -27,6 +27,17 @@ public final class UtilityNotificationMessages {
 		return billGenerated(customerName, billingMonth, billingYear, billTotal);
 	}
 
+	public static String partialPaymentReceived(String customerName, int billingMonth, int billingYear,
+			BigDecimal amountPaid, BigDecimal remainingBalance) {
+		String name = customerName == null || customerName.isBlank() ? "Customer" : customerName;
+		String period = formatPeriod(billingMonth, billingYear);
+		return "Dear " + name + ",\n"
+				+ "Your partial payment of " + formatAmount(amountPaid) + " FRW for your " + period
+				+ " utility bill has been received.\n"
+				+ "Payment status: PARTIALLY_PAID\n"
+				+ "Remaining balance: " + formatAmount(remainingBalance) + " FRW";
+	}
+
 	private static String formatPeriod(int billingMonth, int billingYear) {
 		return Month.of(billingMonth).getDisplayName(TextStyle.FULL, Locale.ENGLISH) + "/" + billingYear;
 	}

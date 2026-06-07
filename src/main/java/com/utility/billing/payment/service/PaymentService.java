@@ -93,6 +93,9 @@ public class PaymentService {
 
 		if (updatedBill.getStatus() == BillStatus.PAID) {
 			scheduleFullPaymentEmail(userId, billingMonth, billingYear, billTotal);
+		} else if (updatedBill.getStatus() == BillStatus.PARTIALLY_PAID) {
+			schedulePartialPaymentEmail(userId, billingMonth, billingYear,
+					payment.getAmountPaid(), updatedBill.getBalance());
 		}
 
 		log.info("Payment recorded: {} for bill {} — outstanding={} status={}",
@@ -114,18 +117,39 @@ public class PaymentService {
 	}
 
 	private void scheduleFullPaymentEmail(UUID userId, int billingMonth, int billingYear, BigDecimal billTotal) {
+		schedulePaymentEmail(userId, () -> {
+			User user = userRepository.findById(userId).orElse(null);
+			if (user == null) {
+				log.warn("Full payment email skipped; user {} not found", userId);
+				return;
+			}
+			String body = UtilityNotificationMessages.fullPaymentProcessed(
+					user.getFullName(), billingMonth, billingYear, billTotal);
+			notificationService.sendEmailToUser(userId, "Payment Received", body);
+			log.info("Full payment email sent to {}", user.getEmail());
+		});
+	}
+
+	private void schedulePartialPaymentEmail(UUID userId, int billingMonth, int billingYear,
+			BigDecimal amountPaid, BigDecimal remainingBalance) {
+		schedulePaymentEmail(userId, () -> {
+			User user = userRepository.findById(userId).orElse(null);
+			if (user == null) {
+				log.warn("Partial payment email skipped; user {} not found", userId);
+				return;
+			}
+			String body = UtilityNotificationMessages.partialPaymentReceived(
+					user.getFullName(), billingMonth, billingYear, amountPaid, remainingBalance);
+			notificationService.sendEmailToUser(userId, "Partial Payment Received", body);
+			log.info("Partial payment email sent to {} — remaining={} FRW", user.getEmail(), remainingBalance);
+		});
+	}
+
+	private void schedulePaymentEmail(UUID userId, Runnable sendAction) {
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {
-				User user = userRepository.findById(userId).orElse(null);
-				if (user == null) {
-					log.warn("Full payment email skipped; user {} not found", userId);
-					return;
-				}
-				String body = UtilityNotificationMessages.fullPaymentProcessed(
-						user.getFullName(), billingMonth, billingYear, billTotal);
-				notificationService.sendEmailToUser(userId, "Payment Received", body);
-				log.info("Full payment email queued for user {}", user.getEmail());
+				sendAction.run();
 			}
 		});
 	}

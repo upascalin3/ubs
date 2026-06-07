@@ -25,4 +25,16 @@ class UtilityNotificationMessagesTest {
 				"Dear John Doe,\nYour June/2026 utility bill of 15930 FRW has been successfully processed.",
 				message);
 	}
+
+	@Test
+	void partialPaymentIncludesStatusAndRemainingBalance() {
+		String message = UtilityNotificationMessages.partialPaymentReceived(
+				"John Doe", 6, 2026, new BigDecimal("5000.00"), new BigDecimal("10930.00"));
+		assertEquals(
+				"Dear John Doe,\n"
+						+ "Your partial payment of 5000 FRW for your June/2026 utility bill has been received.\n"
+						+ "Payment status: PARTIALLY_PAID\n"
+						+ "Remaining balance: 10930 FRW",
+				message);
+	}
 }
