@@ -1,7 +1,7 @@
 package com.utility.billing.billing.entity;
 import com.utility.billing.common.entity.BaseAuditEntity;
 import jakarta.persistence.*; import lombok.*;
-import java.math.BigDecimal; import java.time.LocalDateTime; import java.util.UUID;
+import java.math.BigDecimal; import java.time.LocalDate; import java.time.LocalDateTime; import java.util.UUID;
 @Entity @Table(name = "bills", schema = "billing")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Bill extends BaseAuditEntity {
@@ -18,5 +18,6 @@ public class Bill extends BaseAuditEntity {
     @Column(nullable = false) private BigDecimal balance;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private BillStatus status;
     @Column(name = "generated_date", nullable = false) private LocalDateTime generatedDate;
+    @Column(name = "due_date") private LocalDate dueDate;
     @Column(name = "approved_by") private UUID approvedBy;
 }

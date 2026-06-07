@@ -40,6 +40,14 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
+## Documentation
+
+- **ERD (DBML — import to dbdiagram.io):** `docs/diagrams/ubs-erd.dbml`
+- **ERD (Mermaid):** `docs/diagrams/ubs-erd.mmd`
+- **ERD (PostgreSQL SQL):** `docs/diagrams/ubs-erd.sql`
+- **ERD (PDF):** `docs/diagrams/User Management Payment-2026-06-05-114022.pdf`
+- **Spring Boot flow (Mermaid only):** `docs/diagrams/spring-boot-flow.mmd`
+
 ## Swagger / OpenAPI
 
 - **UI:** http://localhost:8080/swagger-ui.html

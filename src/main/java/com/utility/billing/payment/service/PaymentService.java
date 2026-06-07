@@ -5,20 +5,25 @@ import com.utility.billing.auth.repository.UserRepository;
 import com.utility.billing.billing.entity.Bill;
 import com.utility.billing.billing.entity.BillStatus;
 import com.utility.billing.billing.repository.BillRepository;
-import com.utility.billing.billing.service.BillPdfService;
 import com.utility.billing.common.exception.BusinessException;
 import com.utility.billing.common.exception.ResourceNotFoundException;
+import com.utility.billing.common.security.RoleName;
+import com.utility.billing.common.security.SecurityUtils;
+import com.utility.billing.notification.service.NotificationService;
+import com.utility.billing.notification.util.UtilityNotificationMessages;
 import com.utility.billing.payment.dto.PaymentRequest;
 import com.utility.billing.payment.dto.PaymentResponse;
 import com.utility.billing.payment.entity.Payment;
 import com.utility.billing.payment.repository.PaymentRepository;
-import com.utility.billing.notification.service.NotificationService;
+import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,18 +37,18 @@ public class PaymentService {
 
 	private final PaymentRepository paymentRepo;
 	private final BillRepository billRepo;
-	private final NotificationService notificationService;
 	private final UserRepository userRepository;
-	private final BillPdfService billPdfService;
+	private final NotificationService notificationService;
+	private final EntityManager entityManager;
 
 	public PaymentService(PaymentRepository paymentRepo, BillRepository billRepo,
-			NotificationService notificationService, UserRepository userRepository,
-			BillPdfService billPdfService) {
+			UserRepository userRepository, NotificationService notificationService,
+			EntityManager entityManager) {
 		this.paymentRepo = paymentRepo;
 		this.billRepo = billRepo;
-		this.notificationService = notificationService;
 		this.userRepository = userRepository;
-		this.billPdfService = billPdfService;
+		this.notificationService = notificationService;
+		this.entityManager = entityManager;
 	}
 
 	@Transactional
@@ -58,19 +63,19 @@ public class PaymentService {
 		Bill bill = billRepo.findById(req.getBillId())
 				.orElseThrow(() -> new ResourceNotFoundException("Bill not found"));
 
-		if (!EnumSet.of(BillStatus.APPROVED, BillStatus.PARTIALLY_PAID).contains(bill.getStatus())) {
-			throw new BusinessException("Payments can only be recorded against APPROVED or PARTIALLY_PAID bills");
+		if (!EnumSet.of(BillStatus.APPROVED, BillStatus.PARTIALLY_PAID, BillStatus.OVERDUE)
+				.contains(bill.getStatus())) {
+			throw new BusinessException(
+					"Payments can only be recorded against APPROVED, PARTIALLY_PAID, or OVERDUE bills");
 		}
 		if (req.getAmountPaid().compareTo(bill.getBalance()) > 0) {
 			throw new BusinessException("Payment cannot exceed outstanding balance");
 		}
-		BigDecimal remainingBalance = bill.getBalance().subtract(req.getAmountPaid());
-		if (remainingBalance.compareTo(BigDecimal.ZERO) < 0) {
-			remainingBalance = BigDecimal.ZERO;
-		}
-		BillStatus paymentStatus = remainingBalance.compareTo(BigDecimal.ZERO) == 0
-				? BillStatus.PAID
-				: BillStatus.PARTIALLY_PAID;
+
+		BigDecimal billTotal = bill.getAmount().add(bill.getTaxAmount()).add(bill.getPenalty());
+		UUID userId = bill.getUserId();
+		int billingMonth = bill.getBillingMonth();
+		int billingYear = bill.getBillingYear();
 
 		Payment payment = Payment.builder()
 				.billId(req.getBillId())
@@ -80,55 +85,68 @@ public class PaymentService {
 				.referenceNumber(req.getReferenceNumber())
 				.build();
 		payment = paymentRepo.save(payment);
-		bill.setBalance(remainingBalance);
-		bill.setStatus(paymentStatus);
-		billRepo.save(bill);
-		if (paymentStatus == BillStatus.PAID) {
-			notifyFullPaymentRecorded(payment, bill);
+		entityManager.flush();
+		entityManager.clear();
+
+		Bill updatedBill = billRepo.findById(req.getBillId())
+				.orElseThrow(() -> new ResourceNotFoundException("Bill not found"));
+
+		if (updatedBill.getStatus() == BillStatus.PAID) {
+			scheduleFullPaymentEmail(userId, billingMonth, billingYear, billTotal);
 		}
 
 		log.info("Payment recorded: {} for bill {} — outstanding={} status={}",
-				req.getReferenceNumber(), bill.getBillNumber(), remainingBalance, paymentStatus);
+				req.getReferenceNumber(), updatedBill.getBillNumber(),
+				updatedBill.getBalance(), updatedBill.getStatus());
 
 		return PaymentResponse.builder()
 				.id(payment.getId())
 				.billId(payment.getBillId())
-				.userId(bill.getUserId())
+				.userId(updatedBill.getUserId())
 				.amountPaid(payment.getAmountPaid())
 				.paymentMethod(payment.getPaymentMethod())
 				.paymentDate(payment.getPaymentDate())
 				.referenceNumber(payment.getReferenceNumber())
-				.remainingBalance(remainingBalance)
-				.billStatus(paymentStatus.name())
+				.remainingBalance(updatedBill.getBalance())
+				.billStatus(updatedBill.getStatus().name())
 				.createdAt(payment.getCreatedAt())
 				.build();
 	}
 
-	private void notifyFullPaymentRecorded(Payment payment, Bill bill) {
-		notificationService.create(
-				bill.getUserId(),
-				"Payment Received",
-				"Your payment of " + payment.getAmountPaid() + " RWF for bill "
-						+ bill.getBillNumber() + " has been received. Reference: "
-						+ payment.getReferenceNumber() + ". Your utility bill is fully paid.",
-				billPdfService.generate(bill, findUser(bill.getUserId())),
-				bill.getBillNumber() + ".pdf");
-	}
-
-	private User findUser(UUID userId) {
-		return userRepository.findById(userId).orElseThrow();
+	private void scheduleFullPaymentEmail(UUID userId, int billingMonth, int billingYear, BigDecimal billTotal) {
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				User user = userRepository.findById(userId).orElse(null);
+				if (user == null) {
+					log.warn("Full payment email skipped; user {} not found", userId);
+					return;
+				}
+				String body = UtilityNotificationMessages.fullPaymentProcessed(
+						user.getFullName(), billingMonth, billingYear, billTotal);
+				notificationService.sendEmailToUser(userId, "Payment Received", body);
+				log.info("Full payment email queued for user {}", user.getEmail());
+			}
+		});
 	}
 
 	public Page<PaymentResponse> list(Pageable pageable) {
+		if (SecurityUtils.hasRole(RoleName.CUSTOMER)) {
+			return paymentRepo.findByUserId(SecurityUtils.requireCurrentUserId(), pageable).map(this::toResponse);
+		}
 		return paymentRepo.findAll(pageable).map(this::toResponse);
 	}
 
 	public Page<PaymentResponse> byBill(UUID billId, Pageable pageable) {
+		Bill bill = billRepo.findById(billId)
+				.orElseThrow(() -> new ResourceNotFoundException("Bill not found"));
+		SecurityUtils.assertCustomerOwns(bill.getUserId());
 		return paymentRepo.findByBillId(billId, pageable).map(this::toResponse);
 	}
 
 	public Page<PaymentResponse> byUser(UUID userId, Pageable pageable) {
-		return paymentRepo.findByUserId(userId, pageable).map(this::toResponse);
+		UUID scopedUserId = SecurityUtils.resolveUserScope(userId);
+		return paymentRepo.findByUserId(scopedUserId, pageable).map(this::toResponse);
 	}
 
 	private PaymentResponse toResponse(Payment payment) {

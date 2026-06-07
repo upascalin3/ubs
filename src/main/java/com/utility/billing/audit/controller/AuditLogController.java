@@ -16,7 +16,8 @@ public class AuditLogController {
     private final AuditLogService service;
     public AuditLogController(AuditLogService s) { service=s; }
     @io.swagger.v3.oas.annotations.Hidden
-    @PostMapping("/internal") @Operation(summary = "Internal audit log", description = "Called by other microservices")
+    @PostMapping("/internal") @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Internal audit log", description = "Called by other microservices")
     public ApiResponse<AuditLog> internal(@RequestBody AuditLogRequest req) { return ApiResponse.success(service.log(req)); }
     @GetMapping @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "List audit logs", description = "Accessible only by ROLE_ADMIN")

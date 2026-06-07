@@ -2,6 +2,7 @@ package com.utility.billing.notification.service;
 
 import com.utility.billing.auth.entity.User;
 import com.utility.billing.auth.repository.UserRepository;
+import com.utility.billing.common.security.SecurityUtils;
 import com.utility.billing.notification.dto.InternalNotificationRequest;
 import com.utility.billing.notification.entity.Notification;
 import com.utility.billing.notification.repository.NotificationRepository;
@@ -49,7 +50,7 @@ public class NotificationService {
 				.build();
 		n = repo.save(n);
 		log.info("Notification created for user {}", userId);
-		sendNotificationEmail(userId, title, message, attachment, attachmentName);
+		deliverEmail(userId, title, message, attachment, attachmentName);
 		return n;
 	}
 
@@ -59,7 +60,8 @@ public class NotificationService {
 	}
 
 	public Page<Notification> byUser(UUID userId, Pageable pageable) {
-		return repo.findByUserId(userId, pageable);
+		UUID scopedUserId = SecurityUtils.resolveUserScope(userId);
+		return repo.findByUserId(scopedUserId, pageable);
 	}
 
 	public Page<Notification> list(Pageable pageable) {
@@ -69,8 +71,13 @@ public class NotificationService {
 	@Transactional
 	public Notification markRead(UUID id) {
 		Notification n = repo.findById(id).orElseThrow();
+		SecurityUtils.assertCustomerOwns(n.getUserId());
 		n.setStatus("READ");
 		return repo.save(n);
+	}
+
+	public void sendEmailToUser(UUID userId, String subject, String body) {
+		deliverEmail(userId, subject, body, null, null);
 	}
 
 	public void sendEmail(String to, String subject, String body) {
@@ -80,6 +87,7 @@ public class NotificationService {
 			msg.setSubject(subject);
 			msg.setText(body);
 			mailSender.send(msg);
+			log.info("Email sent to {}", to);
 		} catch (Exception ex) {
 			log.warn("Email send failed: {}", ex.getMessage());
 		}
@@ -105,7 +113,7 @@ public class NotificationService {
 		}
 	}
 
-	private void sendNotificationEmail(UUID userId, String title, String message,
+	private void deliverEmail(UUID userId, String title, String message,
 			byte[] attachment, String attachmentName) {
 		userRepository.findById(userId)
 				.map(User::getEmail)

@@ -25,9 +25,16 @@ public interface BillRepository extends JpaRepository<Bill, UUID> {
 	Page<Bill> findByBillNumberContainingIgnoreCaseAndStatusIn(
 			String billNumber, Collection<BillStatus> statuses, Pageable pageable);
 
+	Page<Bill> findByUserIdAndBillNumberContainingIgnoreCaseAndStatusIn(
+			UUID userId, String billNumber, Collection<BillStatus> statuses, Pageable pageable);
+
 	Optional<Bill> findByBillNumber(String billNumber);
+
+	boolean existsByMeterIdAndBillingMonthAndBillingYear(UUID meterId, int billingMonth, int billingYear);
 
 	Page<Bill> findByBillNumberContainingIgnoreCase(String billNumber, Pageable pageable);
 
 	List<Bill> findByGeneratedDateGreaterThanEqual(LocalDateTime generatedDate);
+
+	List<Bill> findByStatusInAndDueDateBefore(Collection<BillStatus> statuses, java.time.LocalDate dueDate);
 }

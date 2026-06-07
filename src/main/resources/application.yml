@@ -32,6 +32,7 @@ spring:
           auth: true
           starttls:
             enable: true
+        from: ${MAIL_USERNAME:}
   servlet:
     multipart:
       max-file-size: 5MB
@@ -49,6 +50,9 @@ app:
     scheduler:
       enabled: true
       cron: "0 0 1 1 * *"
+    overdue-scheduler:
+      enabled: true
+      cron: "0 0 2 * * *"
 
 springdoc:
   default-flat-param-object: true

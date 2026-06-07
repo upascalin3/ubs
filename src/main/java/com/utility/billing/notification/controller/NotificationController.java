@@ -28,6 +28,7 @@ public class NotificationController {
 
 	@io.swagger.v3.oas.annotations.Hidden
 	@PostMapping("/internal")
+	@PreAuthorize("hasRole('ADMIN')")
 	@Operation(summary = "Internal notification")
 	public ApiResponse<Notification> internal(@RequestBody InternalNotificationRequest req) {
 		return ApiResponse.success(service.createInternal(req));

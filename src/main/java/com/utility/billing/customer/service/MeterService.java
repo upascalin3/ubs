@@ -3,6 +3,7 @@ package com.utility.billing.customer.service;
 import com.utility.billing.auth.entity.User;
 import com.utility.billing.auth.entity.UserStatus;
 import com.utility.billing.auth.repository.UserRepository;
+import com.utility.billing.billing.util.BillingPeriodValidator;
 import com.utility.billing.common.exception.BusinessException;
 import com.utility.billing.common.exception.ResourceNotFoundException;
 import com.utility.billing.customer.dto.MeterRequest;
@@ -16,7 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Service
@@ -40,15 +40,15 @@ public class MeterService {
 		if (meterRepo.existsByMeterNumber(req.getMeterNumber())) {
 			throw new BusinessException("Meter number already exists");
 		}
-		if (req.getInstallationDate().isAfter(LocalDate.now())) {
-			throw new BusinessException("Installation date cannot be in the future");
-		}
+		BillingPeriodValidator.validateInstallationDate(req.getInstallationDate());
+		MeterType meterType = parseMeterType(req.getMeterType());
+		MeterStatus meterStatus = parseMeterStatus(req.getStatus());
 		Meter meter = Meter.builder()
 				.userId(req.getUserId())
 				.meterNumber(req.getMeterNumber())
-				.meterType(MeterType.valueOf(req.getMeterType()))
+				.meterType(meterType)
 				.installationDate(req.getInstallationDate())
-				.status(MeterStatus.valueOf(req.getStatus()))
+				.status(meterStatus)
 				.build();
 		return toResponse(meterRepo.save(meter));
 	}
@@ -57,8 +57,24 @@ public class MeterService {
 	public MeterResponse update(UUID id, MeterRequest req) {
 		Meter meter = meterRepo.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Meter not found"));
-		meter.setStatus(MeterStatus.valueOf(req.getStatus()));
+		meter.setStatus(parseMeterStatus(req.getStatus()));
 		return toResponse(meterRepo.save(meter));
+	}
+
+	private MeterType parseMeterType(String meterType) {
+		try {
+			return MeterType.valueOf(meterType.trim().toUpperCase());
+		} catch (IllegalArgumentException ex) {
+			throw new BusinessException("Meter type must be WATER or ELECTRICITY");
+		}
+	}
+
+	private MeterStatus parseMeterStatus(String status) {
+		try {
+			return MeterStatus.valueOf(status.trim().toUpperCase());
+		} catch (IllegalArgumentException ex) {
+			throw new BusinessException("Meter status must be ACTIVE or INACTIVE");
+		}
 	}
 
 	public MeterResponse get(UUID id) {

@@ -8,7 +8,7 @@ public class BillRequest {
     @NotNull @Schema(description = "Account holder user ID") private UUID userId;
     @NotNull private UUID meterId;
     @NotBlank private String meterType;
-    @NotNull @DecimalMin("0") private BigDecimal consumption;
+    @NotNull @DecimalMin(value = "0.01", message = "Consumption must be greater than zero") private BigDecimal consumption;
     @NotNull @Min(1) @Max(12) private Integer billingMonth;
     @NotNull @Min(2000) private Integer billingYear;
 }

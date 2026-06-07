@@ -3,6 +3,7 @@ package com.utility.billing.meter.service;
 import com.utility.billing.auth.entity.User;
 import com.utility.billing.auth.entity.UserStatus;
 import com.utility.billing.auth.repository.UserRepository;
+import com.utility.billing.billing.util.BillingPeriodValidator;
 import com.utility.billing.common.exception.BusinessException;
 import com.utility.billing.common.exception.ResourceNotFoundException;
 import com.utility.billing.customer.entity.Meter;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.UUID;
 
 @Service
@@ -44,11 +44,13 @@ public class MeterReadingService {
 
 	@Transactional
 	public ReadingResponse capture(ReadingRequest req) {
+		BillingPeriodValidator.validateMonthYear(req.getMonth(), req.getYear());
+		BillingPeriodValidator.validateNotFuturePeriod(req.getMonth(), req.getYear());
+		BillingPeriodValidator.validateReadingDateNotFuture(req.getReadingDate());
+		BillingPeriodValidator.validateReadingDateInPeriod(req.getReadingDate(), req.getMonth(), req.getYear());
+
 		if (req.getCurrentReading().compareTo(req.getPreviousReading()) <= 0) {
 			throw new BusinessException("Current reading must be greater than previous reading");
-		}
-		if (req.getReadingDate().isAfter(LocalDate.now())) {
-			throw new BusinessException("Reading date cannot be in the future");
 		}
 		if (readingRepo.existsByMeterIdAndMonthAndYear(req.getMeterId(), req.getMonth(), req.getYear())) {
 			throw new BusinessException("One reading per meter per month is allowed");
@@ -59,11 +61,25 @@ public class MeterReadingService {
 		if (meter.getStatus() != MeterStatus.ACTIVE) {
 			throw new BusinessException("Inactive meter cannot receive readings");
 		}
+		BillingPeriodValidator.validateNotBeforeInstallation(
+				meter.getInstallationDate(), req.getMonth(), req.getYear());
+		if (req.getReadingDate().isBefore(meter.getInstallationDate())) {
+			throw new BusinessException("Reading date cannot be before meter installation date");
+		}
+
 		User user = userRepository.findById(meter.getUserId())
 				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 		if (user.getStatus() != UserStatus.ACTIVE) {
 			throw new BusinessException("Inactive user cannot be billed");
 		}
+
+		readingRepo.findTopByMeterIdOrderByYearDescMonthDesc(req.getMeterId()).ifPresent(lastReading -> {
+			if (req.getPreviousReading().compareTo(lastReading.getCurrentReading()) != 0) {
+				throw new BusinessException(
+						"Previous reading must match the last recorded reading ("
+								+ lastReading.getCurrentReading() + ")");
+			}
+		});
 
 		MeterReading reading = MeterReading.builder()
 				.meterId(req.getMeterId())
